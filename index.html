@@ -353,7 +353,7 @@ async function loadTrades() {
   try {
     const pr = await bybit('/v5/position/list', {category:'linear', settleCoin:'USDT', limit:50});
     const pos = (pr.list||[]).filter(p => parseFloat(p.size||0) > 0);
-    const max = 3;
+    const max = 4;
 
     // Slots
     let sh = '<div class="slots">';
