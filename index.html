@@ -477,7 +477,11 @@ async function loadAnalyse() {
   if (needKey()) return;
   try {
     const r = await bybit('/v5/position/closed-pnl', {category:'linear', limit:50});
-    const trades = r.list || [];
+    const allTrades = r.list || [];
+
+    // Filter out hidden trades — same as Journal
+    const hidden = JSON.parse(localStorage.getItem('hb_hidden_trades') || '[]');
+    const trades = allTrades.filter(t => !hidden.includes(t.orderId));
 
     if (!trades.length) {
       document.getElementById('stat-wrap').innerHTML = '<div class="empty" style="grid-column:1/-1">KEINE DATEN</div>';
@@ -488,9 +492,9 @@ async function loadAnalyse() {
     const total   = pnls.reduce((a,b)=>a+b,0);
     const wins    = pnls.filter(p=>p>0).length;
     const losses  = pnls.filter(p=>p<0).length;
-    const wr      = Math.round(wins/trades.length*100);
+    const wr      = trades.length ? Math.round(wins/trades.length*100) : 0;
     const avgW    = wins ? pnls.filter(p=>p>0).reduce((a,b)=>a+b,0)/wins : 0;
-    const maxLoss = Math.min(...pnls);
+    const maxLoss = pnls.length ? Math.min(...pnls) : 0;
 
     document.getElementById('stat-wrap').innerHTML = `
       <div class="stat">
