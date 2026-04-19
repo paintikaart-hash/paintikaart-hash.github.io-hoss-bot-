@@ -415,24 +415,56 @@ async function loadJournal() {
       return;
     }
 
-    document.getElementById('jnl-wrap').innerHTML = trades.map(t => {
-      const pnl = parseFloat(t.closedPnl||0);
-      // closed-pnl: side is the CLOSING side → invert for display
-      const isL = t.side === 'Sell';
-      return `<div class="card">
-        <div class="card-top">
-          <span class="card-sym">${t.symbol}</span>
-          <span class="card-pnl ${pc(pnl)}">${pnl>=0?'+':''}${pnl.toFixed(4)} USDT</span>
-        </div>
-        <div class="card-row">
-          <div><div class="card-label">Side</div><div class="card-val ${isL?'g':'r'}">${isL?'▲ LONG':'▼ SHORT'}</div></div>
-          <div><div class="card-label">Entry</div><div class="card-val">${fp(t.avgEntryPrice)}</div></div>
-          <div><div class="card-label">Exit</div><div class="card-val">${fp(t.avgExitPrice)}</div></div>
-        </div>
-        <div style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);margin-top:6px;">${ft(t.updatedTime)}</div>
-      </div>`;
-    }).join('');
+    // Load hidden trade IDs from localStorage
+    const hiddenKey = 'hb_hidden_trades';
+    let hidden = JSON.parse(localStorage.getItem(hiddenKey) || '[]');
 
+    const visible  = trades.filter(t => !hidden.includes(t.orderId));
+    const hiddenCt = trades.length - visible.length;
+
+    function renderJournal() {
+      const cards = visible.map(t => {
+        const pnl = parseFloat(t.closedPnl||0);
+        const isL = t.side === 'Sell';
+        return `<div class="card" id="jcard-${t.orderId}">
+          <div class="card-top">
+            <span class="card-sym">${t.symbol}</span>
+            <span class="card-pnl ${pc(pnl)}">${pnl>=0?'+':''}${pnl.toFixed(4)} USDT</span>
+          </div>
+          <div class="card-row">
+            <div><div class="card-label">Side</div><div class="card-val ${isL?'g':'r'}">${isL?'▲ LONG':'▼ SHORT'}</div></div>
+            <div><div class="card-label">Entry</div><div class="card-val">${fp(t.avgEntryPrice)}</div></div>
+            <div><div class="card-label">Exit</div><div class="card-val">${fp(t.avgExitPrice)}</div></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+            <span style="font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);">${ft(t.updatedTime)}</span>
+            <button class="chart-btn" style="color:var(--red);border-color:rgba(255,61,110,0.3);" onclick="hideJournalTrade('${t.orderId}')">✕ AUSBLENDEN</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      const footer = hiddenCt > 0
+        ? `<div style="text-align:center;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);padding:12px;">
+            ${hiddenCt} Trade(s) ausgeblendet · <span style="color:var(--purple);cursor:pointer;" onclick="showAllJournal()">ALLE ANZEIGEN</span>
+           </div>`
+        : '';
+
+      document.getElementById('jnl-wrap').innerHTML = cards + footer;
+    }
+
+    window.hideJournalTrade = function(orderId) {
+      hidden.push(orderId);
+      localStorage.setItem(hiddenKey, JSON.stringify(hidden));
+      const card = document.getElementById('jcard-' + orderId);
+      if (card) card.remove();
+    };
+
+    window.showAllJournal = function() {
+      localStorage.removeItem(hiddenKey);
+      loadJournal();
+    };
+
+    renderJournal();
     document.getElementById('upd-j').textContent = new Date().toLocaleTimeString('de-CH');
   } catch(err) {
     showErr('err-j', err.message);
